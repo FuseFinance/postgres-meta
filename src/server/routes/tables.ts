@@ -107,18 +107,22 @@ const route: FastifyPluginAsyncTypebox = async (fastify) => {
         }),
         body: postgresTableCreateSchema,
         response: {
-          200: postgresTableSchema,
+          200: {
+            table: postgresTableSchema,
+            tableSql: Type.String(),
+          },
           400: Type.Object({
             error: Type.String(),
           }),
         },
       },
     },
-    async (request, reply) => {
+    async (request, reply): Promise<any> => {
       const connectionString = request.headers.pg
 
       const pgMeta = new PostgresMeta({ ...DEFAULT_POOL_CONFIG, connectionString })
       const { data, error } = await pgMeta.tables.create(request.body)
+      console.info('data', data)
       await pgMeta.end()
       if (error) {
         request.log.error({ error, request: extractRequestForLogging(request) })

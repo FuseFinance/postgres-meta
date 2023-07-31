@@ -5,6 +5,12 @@ import { columnsSql } from './sql/index.js'
 import { PostgresMetaResult, PostgresColumn } from './types.js'
 import { filterByList } from './helpers.js'
 
+
+interface PGColumn {
+  column: PostgresColumn,
+  columnSql: string,
+}
+
 export default class PostgresMetaColumns {
   query: (sql: string) => Promise<PostgresMetaResult<any>>
   metaTables: PostgresMetaTables
@@ -116,7 +122,8 @@ WHERE
   }
 
   async create({
-    table_id,
+    tableName,
+    schemaName,
     name,
     type,
     default_value,
@@ -130,7 +137,8 @@ WHERE
     comment,
     check,
   }: {
-    table_id: number
+    tableName: string,
+    schemaName: string,
     name: string
     type: string
     default_value?: any
@@ -142,8 +150,8 @@ WHERE
     is_unique?: boolean
     comment?: string
     check?: string
-  }): Promise<PostgresMetaResult<PostgresColumn>> {
-    const { data, error } = await this.metaTables.retrieve({ id: table_id })
+  }): Promise<PostgresMetaResult<PGColumn>> {
+    const { data, error } = await this.metaTables.retrieve({ name: tableName, schema: schemaName })
     if (error) {
       return { data: null, error }
     }
@@ -181,23 +189,32 @@ WHERE
         ? ''
         : `COMMENT ON COLUMN ${ident(schema)}.${ident(table)}.${ident(name)} IS ${literal(comment)}`
 
-    const sql = `
-BEGIN;
-  ALTER TABLE ${ident(schema)}.${ident(table)} ADD COLUMN ${ident(name)} ${typeIdent(type)}
+    const columnSql = `ALTER TABLE ${ident(schema)}.${ident(table)} ADD COLUMN ${ident(name)} ${typeIdent(type)}
     ${defaultValueClause}
     ${isNullableClause}
     ${isPrimaryKeyClause}
     ${isUniqueClause}
-    ${checkSql};
+    ${checkSql};`;
+    const sql = `
+BEGIN;
+  ${columnSql}
   ${commentSql};
 COMMIT;`
     {
-      const { error } = await this.query(sql)
+      let error;
+      const queryResult = await this.query(sql)
+      const retrieve = await this.retrieve({ name, table, schema })
+
+      error = queryResult.error || retrieve.error;
       if (error) {
         return { data: null, error }
       }
-    }
-    return await this.retrieve({ name, table, schema })
+    
+    return {
+      data: { column: retrieve.data as PostgresColumn, columnSql },
+      error
+    } 
+  }
   }
 
   async update(

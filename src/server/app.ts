@@ -5,7 +5,13 @@ import { PG_META_REQ_HEADER } from './constants.js'
 import routes from './routes/index.js'
 import { extractRequestForLogging } from './utils.js'
 // Pseudo package declared only for this module
-import pkg from '#package.json' assert { type: 'json' }
+// import pkg from '#package.json' assert { type: 'json' }
+
+
+const pkg = {
+  version: '0.0.0',
+  name: 'postgres-meta',
+};
 
 export const build = (opts: FastifyServerOptions = {}): FastifyInstance => {
   const app = fastify({

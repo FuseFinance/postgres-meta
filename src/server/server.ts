@@ -25,6 +25,7 @@ const logger = pino({
 const app = buildApp({ logger })
 const adminApp = buildAdminApp({ logger })
 
+logger.info('HERE');
 if (EXPORT_DOCS) {
   // TODO: Move to a separate script.
   await app.ready()

@@ -9,6 +9,11 @@ import {
   PostgresTableUpdate,
 } from './types.js'
 
+interface PGTable {
+  table: PostgresTable,
+  tableSql: string,
+}
+
 export default class PostgresMetaTables {
   query: (sql: string) => Promise<PostgresMetaResult<any>>
 
@@ -65,6 +70,7 @@ export default class PostgresMetaTables {
     return await this.query(sql)
   }
 
+
   async retrieve({ id }: { id: number }): Promise<PostgresMetaResult<PostgresTable>>
   async retrieve({
     name,
@@ -114,22 +120,33 @@ export default class PostgresMetaTables {
     }
   }
 
+  
+
   async create({
     name,
     schema = 'public',
     comment,
-  }: PostgresTableCreate): Promise<PostgresMetaResult<PostgresTable>> {
+  }: PostgresTableCreate): Promise<PostgresMetaResult<PGTable>> {
     const tableSql = `CREATE TABLE ${ident(schema)}.${ident(name)} ();`
     const commentSql =
       comment === undefined
         ? ''
         : `COMMENT ON TABLE ${ident(schema)}.${ident(name)} IS ${literal(comment)};`
     const sql = `BEGIN; ${tableSql} ${commentSql} COMMIT;`
-    const { error } = await this.query(sql)
+    let error;
+    const queryResult = await this.query(sql)
+    const retrieve =  await this.retrieve({ name, schema });
+
+    error = queryResult.error || retrieve.error;
+
     if (error) {
       return { data: null, error }
     }
-    return await this.retrieve({ name, schema })
+
+    return {
+      data: { table: retrieve.data as PostgresTable, tableSql },
+      error,
+    }
   }
 
   async update(
